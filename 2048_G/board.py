@@ -59,6 +59,17 @@ class Board:
         return board, score
 
     @staticmethod
+    def check_valid_move(board):
+        for ix, iy in np.ndindex(board.shape):
+            if ix < 3:
+                if board[ix][iy] == board[ix + 1][iy]:
+                    return True
+            if iy < 3:
+                if board[ix][iy] == board[ix][iy + 1]:
+                    return True
+        return False
+
+    @staticmethod
     def new_pieces(board):
         full = False
         board_zeros = np.argwhere(board == 0)

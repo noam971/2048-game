@@ -102,7 +102,8 @@ class Game:
                 else:
                     self.direction = ''
                     if len(np.argwhere(self.board_values == 0)) == 0:
-                        self.game_over = True
+                        if not Board.check_valid_move(self.board_values):
+                            self.game_over = True
                     continue
 
             if self.game_over:
