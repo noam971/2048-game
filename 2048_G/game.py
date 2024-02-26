@@ -1,49 +1,41 @@
 import pygame
 import numpy as np
 from board import Board
+from mcst import mcst_move
+pygame.init()
+pygame.display.set_caption('2048 :)')
 
 
 class Game:
-    # Initial setup
-    board_values = np.zeros((4, 4), int)
-    game_over = False
-    spawn_new = True
-    init_count = 0
-    direction = ''
-    score = 0
-    file = open('high_score', 'r')
-    init_high = int(file.readline())
-    file.close()
-    high_score = init_high
 
-    pygame.init()
     WIDTH = 400
     HEIGHT = 500
-    screen = pygame.display.set_mode([WIDTH, HEIGHT])
-    pygame.display.set_caption('2048 :)')
-    timer = pygame.time.Clock()
-    fps = 60
-    font = pygame.font.Font('freesansbold.ttf', 24)
 
-    # 2048 color library
-    colors = {0: (204, 192, 179),
-              2: (238, 228, 218),
-              4: (237, 224, 200),
-              8: (242, 177, 121),
-              16: (245, 149, 99),
-              32: (246, 124, 95),
-              64: (246, 94, 59),
-              128: (237, 207, 114),
-              256: (237, 204, 97),
-              512: (237, 200, 80),
-              1024: (237, 197, 63),
-              2048: (237, 194, 46),
-              4096: (32, 172, 47),
-              8192: (255, 50, 70),
-              'light text': (249, 246, 242),
-              'dark text': (119, 110, 101),
-              'other': (0, 0, 0),
-              'bg': (187, 173, 160)}
+    def __init__(self):
+        self.board_values = Board(0)
+        self.game_over = False
+        self.spawn_new = True
+        self.init_count = 0
+        self.direction = ''
+        self.init_high = Game.get_high_score()
+        self.high_score = self.init_high
+        self.screen = pygame.display.set_mode([self.WIDTH, self.HEIGHT])
+        self.timer = pygame.time.Clock()
+        self.fps = 60
+        self.font = pygame.font.Font('freesansbold.ttf', 24)
+
+    @staticmethod
+    def get_high_score():
+        file = open('high_score', 'r')
+        init_high = int(file.readline())
+        file.close()
+        return init_high
+
+    @staticmethod
+    def set_high_score(high_score):
+        file = open('high_score', 'w')
+        file.write(f'{high_score}')
+        file.close()
 
     def draw_over(self):
         pygame.draw.rect(self.screen, 'black', [50, 50, 300, 100], 0, 10)
@@ -52,71 +44,49 @@ class Game:
         self.screen.blit(game_over_text1, (130, 65))
         self.screen.blit(game_over_text2, (70, 105))
 
-
-    def draw_board(self):
-        pygame.draw.rect(self.screen, self.colors['bg'], [0, 0, 400, 400], 0, 10)
-        score_text = self.font.render(f'Score: {self.score}', True, 'black')
-        high_score_text = self.font.render(f'High Score: {self.high_score}', True, 'black')
-        self.screen.blit(score_text, (10, 410))
-        self.screen.blit(high_score_text, (10, 450))
-
-
-    def draw_pieces(self, board):
-        for idx, tile in np.ndenumerate(board):
-            value = tile
-            if value > 8:
-                value_color = self.colors['light text']
-            else:
-                value_color = self.colors['dark text']
-            if value <= 8192:
-                color = self.colors[value]
-            else:
-                color = self.colors['other']
-            pygame.draw.rect(self.screen, color, [idx[1] * 95 + 20, idx[0] * 95 + 20, 75, 75], 0, 5)
-            if value > 0:
-                value_len = len(str(value))
-                font = pygame.font.Font('freesansbold.ttf', 48 - (5 * value_len))
-                value_text = font.render(str(value), True, value_color)
-                text_rect = value_text.get_rect(center=(idx[1] * 95 + 57, idx[0] * 95 + 57))
-                self.screen.blit(value_text, text_rect)
-                pygame.draw.rect(self.screen, 'black', [idx[1] * 95 + 20, idx[0] * 95 + 20, 75, 75], 2, 5)
+    def draw_window(self):
+        self.screen.fill('grey')
+        self.board_values.draw_board(self.screen, self.high_score)
+        self.board_values.draw_pieces(self.screen)
 
     # Main game
     def run_game(self):
         run = True
         while run:
             self.timer.tick(self.fps)
-            self.screen.fill('grey')
-            self.draw_board()
-            self.draw_pieces(self.board_values)
+            self.draw_window()
+
             if self.spawn_new or self.init_count < 2:
-                self.board_values, self.game_over = Board.new_pieces(self.board_values)
+                self.game_over = self.board_values.new_pieces()
                 self.spawn_new = False
                 self.init_count += 1
+
             if self.direction != '':
-                perv_board = self.board_values
-                self.board_values, self.score = Board.take_turn(self.direction, self.board_values, self.score)
-                if not np.array_equal(perv_board, self.board_values):
+                perv_board = self.board_values.board.copy()
+                self.board_values.take_turn(self.direction)
+
+                if not np.array_equal(perv_board, self.board_values.board):
                     self.direction = ''
                     self.spawn_new = True
+                    del perv_board
                 else:
                     self.direction = ''
-                    if len(np.argwhere(self.board_values == 0)) == 0:
-                        if not Board.check_valid_move(self.board_values):
+                    if len(np.argwhere(self.board_values.board == 0)) == 0:
+                        if not self.board_values.check_valid_move():
                             self.game_over = True
+                    del perv_board
                     continue
 
             if self.game_over:
                 self.draw_over()
                 if self.high_score > self.init_high:
-                    self.file = open('high_score', 'w')
-                    self.file.write(f'{self.high_score}')
-                    self.file.close()
+                    Game.set_high_score(self.high_score)
                     self.init_high = self.high_score
 
             for event in pygame.event.get([pygame.QUIT, pygame.KEYUP]):
                 if event.type == pygame.QUIT:
                     run = False
+
                 if event.type == pygame.KEYUP:
                     if not self.game_over:
                         if event.key == pygame.K_UP:
@@ -127,15 +97,17 @@ class Game:
                             self.direction = 'RIGHT'
                         elif event.key == pygame.K_LEFT:
                             self.direction = 'LEFT'
+                        elif event.key == pygame.K_SPACE:
+                            move = mcst_move(20, 10, self.board_values)
+                            self.direction = move
 
                     if self.game_over:
-                        if self.score > self.high_score:
-                            self.high_score = self.score
+                        if self.board_values.score > self.high_score:
+                            self.high_score = self.board_values.score
                         if event.key == pygame.K_RETURN:
-                            self.board_values = np.zeros((4, 4), int)
+                            self.board_values = Board(0)
                             self.spawn_new = True
                             self.init_count = 0
-                            self.score = 0
                             self.direction = ''
                             self.game_over = False
                             continue
