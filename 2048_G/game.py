@@ -50,7 +50,7 @@ class Game:
         self.board_values.draw_pieces(self.screen)
 
     # Main game
-    def run_game(self):
+    def run_game(self, mcst=False):
         run = True
         while run:
             self.timer.tick(self.fps)
@@ -64,7 +64,6 @@ class Game:
             if self.direction != '':
                 perv_board = self.board_values.board.copy()
                 self.board_values.take_turn(self.direction)
-
                 if not np.array_equal(perv_board, self.board_values.board):
                     self.direction = ''
                     self.spawn_new = True
@@ -86,22 +85,45 @@ class Game:
             for event in pygame.event.get([pygame.QUIT, pygame.KEYUP]):
                 if event.type == pygame.QUIT:
                     run = False
+                if not mcst:
+                    if event.type == pygame.KEYUP:
+                        if not self.game_over:
+                            if event.key == pygame.K_UP:
+                                self.direction = 'UP'
+                            elif event.key == pygame.K_DOWN:
+                                self.direction = "DOWN"
+                            elif event.key == pygame.K_RIGHT:
+                                self.direction = 'RIGHT'
+                            elif event.key == pygame.K_LEFT:
+                                self.direction = 'LEFT'
+                            elif event.key == pygame.K_SPACE:
+                                move = mcst_move(30, 10, self.board_values)
+                                self.direction = move
 
-                if event.type == pygame.KEYUP:
-                    if not self.game_over:
-                        if event.key == pygame.K_UP:
-                            self.direction = 'UP'
-                        elif event.key == pygame.K_DOWN:
-                            self.direction = "DOWN"
-                        elif event.key == pygame.K_RIGHT:
-                            self.direction = 'RIGHT'
-                        elif event.key == pygame.K_LEFT:
-                            self.direction = 'LEFT'
-                        elif event.key == pygame.K_SPACE:
-                            move = mcst_move(20, 10, self.board_values)
-                            self.direction = move
+                        if self.game_over:
+                            if self.board_values.score > self.high_score:
+                                self.high_score = self.board_values.score
+                            if event.key == pygame.K_RETURN:
+                                self.board_values = Board(0)
+                                self.spawn_new = True
+                                self.init_count = 0
+                                self.direction = ''
+                                self.game_over = False
+                                continue
 
-                    if self.game_over:
+            if mcst:
+                move = mcst_move(30, 10, self.board_values)
+                self.direction = move
+
+                if self.game_over:
+                    self.draw_over()
+                    if self.high_score > self.init_high:
+                        Game.set_high_score(self.high_score)
+                        self.init_high = self.high_score
+
+                    for event in pygame.event.get([pygame.QUIT, pygame.KEYUP]):
+                        if event.type == pygame.QUIT:
+                            run = False
                         if self.board_values.score > self.high_score:
                             self.high_score = self.board_values.score
                         if event.key == pygame.K_RETURN:
